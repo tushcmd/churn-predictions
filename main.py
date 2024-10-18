@@ -1,5 +1,10 @@
 import streamlit as st
 import pandas as pd
+import pickle
+
+def load_model(filename):
+    with open(filename, 'rb') as file:
+        return pickle.load(file)
 
 st.title("Customer Churn Prediction")
 
