@@ -39,8 +39,7 @@ def create_gauge_chart(probability):
     ))
     
     fig.update_layout(
-        paper_bgcolor='black',
-        plot_bgcolor='black',
+        
         font={'color': 'white'},
         width=400,
         height=360,

@@ -100,94 +100,114 @@ def make_predictions(input_df, input_dict):
     #     st.write("### Churn Prediction")
     #     st.write("The customer is likely to not churn.")
 
+# ... (previous imports and setup remain the same)
+
 def explain_prediction(probability, input_dict, surname):
-    
-    prompt = f"""
-    You are an expert data scientist at a bank, where you specialize in 
-    interpreting and explaining of machine learning models.
-    
-    Your machine learning models has predicted that a customer named {surname}
-    has a {round(probability * 100, 1)}% of churning, based on the information provided below.
-    
-    Here is the customer information:
-    {input_dict}
-    
-    Here are the machine learning model's top 100 most important features for predicting churn:
-    
-        Feature              |  Importance
-    ------------------------------------
-    NumOfProducts        |  0.323888
-    IsActiveMember       |  0.164146
-    Age                  |  0.109550
-    Geography_Germany    |  0.091373
-    Balance              |  0.052786
-    Geography_France     |  0.046463
-    Gender_Female        |  0.045283
-    Geography_Spain      |  0.036855
-    CreditScore          |  0.035005
-    EstimatedSalary      |  0.032655
-    HasCrCard            |  0.031940
-    Tenure               |  0.030054
-    Gender_Male          |  0.000000
-    
-    {pd.set_option('display.max_colwidth', None)}
-    
-    Here are summary statististics for churned customers:
-    {df[df['Exited'] == 1].describe()}
-    
-    
-    - If the customer has over  a 40% risk of churning, generate a 3 sentence explanation of 
-    why they are at risk of churning.
-    - If the customer has less than  a 40% risk of churning, generate a 3 sentence explanation of 
-    why they might not be at risk of churning.
-    - Your explanation should be based on the customer's information, the summary statistics for churned customers,
-    of churned and non-churned customers, and the feature importance provided.
-    
-    
-    - Do not mention the probability of churning, or the machine learning model, or anything like 
-    "Based on the machine learning model's top 10 most important features for predicting churn",
-    just explain the prdiction.(except name)
-    
-    """
-    
-    print("EXPLANATION PROMPT", prompt)
+    prompt = f"""Task: Analyze a bank customer's risk of leaving the bank (churning) and provide a clear explanation.
+
+Context: You are a senior data analyst at a major bank, specializing in customer retention analysis. You need to explain why {surname} might leave or stay with the bank.
+
+Customer Profile:
+- Name: {surname}
+- Credit Score: {input_dict['CreditScore']}
+- Age: {input_dict['Age']}
+- Balance: ${input_dict['Balance']:,.2f}
+- Products Held: {input_dict['NumOfProducts']}
+- Active Member: {'Yes' if input_dict['IsActiveMember'] else 'No'}
+- Location: {'France' if input_dict['Geography_France'] else 'Germany' if input_dict['Geography_Germany'] else 'Spain'}
+- Tenure: {input_dict['Tenure']} years
+
+Key Risk Factors (in order of importance):
+1. Number of Products (32.4% impact)
+2. Active Member Status (16.4% impact)
+3. Age (11.0% impact)
+4. Geographic Location (9.1% impact)
+5. Account Balance (5.3% impact)
+
+Typical Churning Customer Profile:
+{df[df['Exited'] == 1].describe()}
+
+Instructions:
+1. If risk is above 40%: Focus on the specific factors putting this customer at high risk, using their actual numbers compared to typical churners.
+2. If risk is below 40%: Highlight the positive factors keeping this customer stable, backed by their specific data points.
+
+Requirements:
+- Provide exactly three clear, data-backed sentences
+- Use concrete numbers and comparisons
+- Focus on the top 3 most relevant factors for this specific customer
+- Avoid mentioning predictions, models, or probabilities
+- Keep the tone professional but conversational
+
+Write your analysis as if you're explaining to another banker:
+"""
     
     raw_response = client.chat.completions.create(
-        # meta-llama/llama-3.2-3b-instruct:free
         model="llama-3.2-3b-preview",
         messages=[{
             "role": "user", 
-             "content": prompt
-             }],
-        # max_tokens=1000
+            "content": prompt
+        }]
     )
     
     return raw_response.choices[0].message.content
 
 def generate_email(probability, input_dict, surname, explanation):
-    prompt = f"""You are a banker at Equity Bank. You are responsible 
-    for ensuring customers stay with the bank and are incentivized with various offers.
-    
-    You noticed a customer named {surname} has a {round(probability * 100, 1)}% probability of churning: {explanation}
-    
-    
-    Generate an email to the customer based on their information, asking them to stay if they are at risk of churning, or offering them incentives so that they become more loyalto the bank.
-    
-    Make sure to list out a set of incentives to stay based on the customer's information, in bullet point format. 
-    Don't ever mention the probability of churning, or the machine learning model to the customer.
-    """
+    prompt = f"""Task: Write a personalized retention email to a bank customer.
+
+Context:
+You are Jennifer Martinez, Senior Relationship Manager at Equity Bank.
+Customer: {surname}
+Profile:
+- Balance: ${input_dict['Balance']:,.2f}
+- Products: {input_dict['NumOfProducts']} banking products
+- Member for: {input_dict['Tenure']} years
+- Active Status: {'Active' if input_dict['IsActiveMember'] else 'Inactive'}
+- Credit Card: {'Yes' if input_dict['HasCrCard'] else 'No'}
+- Age: {input_dict['Age']}
+- Location: {'France' if input_dict['Geography_France'] else 'Germany' if input_dict['Geography_Germany'] else 'Spain'}
+
+Analysis of their situation:
+{explanation}
+
+Instructions:
+1. Write a personalized email that addresses the specific points mentioned in the analysis
+2. Structure the email as follows:
+   - Warm greeting
+   - Appreciation of their relationship with the bank
+   - Value proposition based on their specific situation
+   - 3-4 bullet points with personalized offers/solutions
+   - Clear call to action
+   - Professional closing
+
+Requirements:
+- Keep the tone warm but professional
+- Be specific to their situation and usage patterns
+- Make offers that match their profile and needs
+- Include specific numbers in offers where relevant
+- Never mention risk scores or churn predictions
+- Maximum 250 words
+
+Personalization Guide:
+- High-balance customers ($100k+): Focus on premium services and investment opportunities
+- Long-term customers (5+ years): Emphasize loyalty rewards
+- Inactive customers: Focus on digital banking features and convenience
+- Single-product customers: Highlight complementary product benefits
+- Young customers (<35): Emphasize digital features and future planning
+- Older customers (>50): Focus on stability and personalized service
+
+Write the email:"""
+
     raw_response = client.chat.completions.create(
-        model = 'llama-3.2-3b-preview',
+        model='llama-3.2-3b-preview',
         messages=[{
             "role": "user", 
-             "content": prompt
+            "content": prompt
         }]
     )
     
-    print("\n\nEMAIL PROMPT", prompt)
-    
     return raw_response.choices[0].message.content
-    
+
+ 
 st.title("Customer Churn Prediction")
 
 df = pd.read_csv("churn.csv")
