@@ -164,7 +164,7 @@ def generate_email(probability, input_dict, surname, explanation):
     
     Generate an email to the customer based on their information, asking them to stay if they are at risk of churning, or offering them incentives so that they become more loyalto the bank.
     
-    Make suyre to list out a set of incentives to stay based on the customer's information, in bullet point format. 
+    Make sure to list out a set of incentives to stay based on the customer's information, in bullet point format. 
     Don't ever mention the probability of churning, or the machine learning model to the customer.
     """
     raw_response = client.chat.completions.create(
