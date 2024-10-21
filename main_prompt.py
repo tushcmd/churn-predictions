@@ -6,6 +6,7 @@ import os
 import dotenv
 from openai import OpenAI
 import utils as ut
+import plotly.express as px
 
 dotenv.load_dotenv()
 # print(os.environ['GROQ_API_KEY'])
@@ -49,9 +50,16 @@ stacking_classifier_model = load_model("improved_models/stacking_model.pkl")
 extra_trees_model = load_model("improved_models/extra_model.pkl")
 
 
-
-
 def prepare_input(credit_score, location, gender, age, tenure, balance, num_products, has_credit_card, is_active_member, estimated_salary):
+    # Calculate derived features
+    clv = estimated_salary * (tenure / 10)  # Example calculation, adjust as needed
+    tenure_age_ratio = tenure / age if age > 0 else 0
+
+    # Determine age group
+    age_group_middle_age = 1 if 35 <= age < 50 else 0
+    age_group_senior = 1 if 50 <= age < 65 else 0
+    age_group_elderly = 1 if age >= 65 else 0
+
     input_dict = {
         "CreditScore": credit_score,
         "Age": age,
@@ -65,58 +73,81 @@ def prepare_input(credit_score, location, gender, age, tenure, balance, num_prod
         "Geography_Germany": 1 if location == "Germany" else 0,
         "Geography_Spain": 1 if location == "Spain" else 0,
         "Gender_Female": 1 if gender == "Female" else 0,
-        "Gender_Male": 1 if gender == "Male" else 0
+        "Gender_Male": 1 if gender == "Male" else 0,
+        "CLV": clv,
+        "TenureAgeRatio": tenure_age_ratio,
+        "Age_Group_MiddleAge": age_group_middle_age,
+        "Age_Group_Senior": age_group_senior,
+        "Age_Group_Elderly": age_group_elderly
     }
+
+    # Create DataFrame and ensure column order matches the original dataset
+    columns = ["CreditScore", "Age", "Tenure", "Balance", "NumOfProducts", "HasCrCard", 
+               "IsActiveMember", "EstimatedSalary", "Geography_France", "Geography_Germany", 
+               "Geography_Spain", "Gender_Female", "Gender_Male", "CLV", "TenureAgeRatio", 
+               "Age_Group_MiddleAge", "Age_Group_Senior", "Age_Group_Elderly"]
     
-    input_df = pd.DataFrame([input_dict])
+    input_df = pd.DataFrame([input_dict], columns=columns)
+    
+    # Convert boolean columns to integers (0/1)
+    input_df = input_df.applymap(lambda x: 1 if x is True else (0 if x is False else x))
+    
     return input_df, input_dict
 
+
 def make_predictions(input_df, input_dict):
-    
     probabilities = {
         'XGBoost': xgboost_model.predict_proba(input_df)[0][1],
         'Random Forest': random_forest_model.predict_proba(input_df)[0][1],
         'K-Nearest Neighbors': knn_model.predict_proba(input_df)[0][1],
-        'SVM': svm_model.predict_proba(input_df)[0][1],
         'Decision Tree': decision_tree_model.predict_proba(input_df)[0][1],
         'Naive Bayes': naive_bayes_model.predict_proba(input_df)[0][1],
-        'Voting Classifier': voting_classifier_model.predict_proba(input_df)[0][1],
-        'XGBoost SMOTE': xgboost_SMOTE_model.predict_proba(input_df)[0][1],
-        'XGBoost Feature Engineered': xgboost_featureEngineered_model.predict_proba(input_df)[0][1],
+        # Comment out or remove models that expect different feature sets
+        # 'XGBoost SMOTE': xgboost_SMOTE_model.predict_proba(input_df)[0][1],
+        # 'XGBoost Feature Engineered': xgboost_featureEngineered_model.predict_proba(input_df)[0][1],
         'AdaBoost': adaboost_model.predict_proba(input_df)[0][1],
         'Gradient Boosting': gb_model.predict_proba(input_df)[0][1],
-        'Stacking Classifier': stacking_classifier_model.predict_proba(input_df)[0][1],
+        # 'Stacking Classifier': stacking_classifier_model.predict_proba(input_df)[0][1],
         'Extra Trees': extra_trees_model.predict_proba(input_df)[0][1],
-               
-
     }
-    
-    avg_probability = np.mean(list(probabilities.values()))
-    col1, col2 = st.columns(2)
 
-    with col1:
-        fig = ut.create_gauge_chart(avg_probability)
-        st.plotly_chart(fig, use_container_width=True)
-        st.write(f"The customer has a {avg_probability:.2%} probability of churning.")
-    
-    with col2:
-        fig_probs = ut.create_model_probability_chart(probabilities)
-        st.plotly_chart(fig_probs, use_container_width=True)
-    # st.markdown("### Model Probabilities")
-    # for model, prob in probabilities.items():
-    #     st.write(f"{model}: {prob:.2f}")
-    # st.write(f"Average Probability: {avg_probability:.2f}")
+    # SVM might not support probability prediction
+    if hasattr(svm_model, 'predict_proba'):
+        probabilities['SVM'] = svm_model.predict_proba(input_df)[0][1]
+
+    # Check if Voting Classifier supports probability prediction
+    if hasattr(voting_classifier_model, 'predict_proba'):
+        probabilities['Voting Classifier'] = voting_classifier_model.predict_proba(input_df)[0][1]
+
+    avg_probability = np.mean(list(probabilities.values()))
+
     return avg_probability
 
-    # if avg_probability > 0.5:
-    #     st.write("### Churn Prediction")
-    #     st.write("The customer is likely to churn.")
-    # else:
-    #     st.write("### Churn Prediction")
-    #     st.write("The customer is likely to not churn.")
+def display_percentile_chart(df, customer_id, metric):
+    """
+    Displays a percentile chart for the selected metric and customer.
+    """
+    # Get the metric for the selected customer
+    customer_value = df.loc[df['CustomerId'] == customer_id, metric].values[0]
+    
+    # Calculate percentiles for the selected metric
+    percentiles = np.percentile(df[metric], np.arange(0, 101, 1))
 
-# ... (previous imports and setup remain the same)
+    # Determine the customer's percentile
+    customer_percentile = np.searchsorted(percentiles, customer_value)
 
+    # Create a line plot of percentiles
+    fig = px.line(
+        x=np.arange(0, 101, 1), 
+        y=percentiles, 
+        labels={'x': 'Percentile', 'y': f'{metric}'},
+        title=f'{metric} Percentile for Customer ID: {customer_id}'
+    )
+    
+    # Add a marker for the customer's value
+    fig.add_scatter(x=[customer_percentile], y=[customer_value], mode='markers', marker=dict(color='red', size=12), name='Customer Value')
+
+    st.plotly_chart(fig)
 def explain_prediction(probability, input_dict, surname):
     prompt = f"""Task: Analyze a bank customer's risk of leaving the bank (churning) and provide a clear explanation.
 
