@@ -22,23 +22,33 @@ def load_model(filename):
     with open(filename, 'rb') as file:
         return pickle.load(file)
 
-xgboost_model = load_model("models/xgb_model.pkl")
+xgboost_model = load_model("improved_models/xgb_model.pkl")
 
-naive_bayes_model = load_model("models/nb_model.pkl")
+naive_bayes_model = load_model("improved_models/nb_model.pkl")
 
-random_forest_model = load_model("models/rf_model.pkl")
+random_forest_model = load_model("improved_models/rf_model.pkl")
 
-decision_tree_model = load_model("models/dt_model.pkl")
+decision_tree_model = load_model("improved_models/dt_model.pkl")
 
-svm_model = load_model("models/svm_model.pkl")
+svm_model = load_model("improved_models/svm_model.pkl")
 
-knn_model = load_model("models/knn_model.pkl")
+knn_model = load_model("improved_models/knn_model.pkl")
 
-voting_classifier_model = load_model("models/voting_classifier.pkl")
+voting_classifier_model = load_model("improved_models/voting_classifier.pkl")
 
-xgboost_SMOTE_model = load_model("models/xgboost_SMOTE.pkl")
+xgboost_SMOTE_model = load_model("improved_models/xgboost_SMOTE.pkl")
 
-xgboost_featureEngineered_model = load_model("models/xgboost_featureEngineered.pkl")
+xgboost_featureEngineered_model = load_model("improved_models/xgboost_featureEngineered.pkl")
+
+adaboost_model = load_model("improved_models/ada_model.pkl")
+
+gb_model = load_model("improved_models/gb_model.pkl")
+
+stacking_classifier_model = load_model("improved_models/stacking_model.pkl")
+
+extra_trees_model = load_model("improved_models/extra_model.pkl")
+
+
 
 
 def prepare_input(credit_score, location, gender, age, tenure, balance, num_products, has_credit_card, is_active_member, estimated_salary):
@@ -67,12 +77,17 @@ def make_predictions(input_df, input_dict):
         'XGBoost': xgboost_model.predict_proba(input_df)[0][1],
         'Random Forest': random_forest_model.predict_proba(input_df)[0][1],
         'K-Nearest Neighbors': knn_model.predict_proba(input_df)[0][1],
-        # 'SVM': svm_model.predict_proba(input_df)[0][1],
-        # 'Decision Tree': decision_tree_model.predict_proba(input_df)[0][1],
-        # 'Naive Bayes': naive_bayes_model.predict_proba(input_df)[0][1],
-        # 'Voting Classifier': voting_classifier_model.predict_proba(input_df)[0][1],
-        # 'XGBoost SMOTE': xgboost_SMOTE_model.predict_proba(input_df)[0][1],
-        # 'XGBoost Feature Engineered': xgboost_featureEngineered_model.predict_proba(input_df)[0][1],
+        'SVM': svm_model.predict_proba(input_df)[0][1],
+        'Decision Tree': decision_tree_model.predict_proba(input_df)[0][1],
+        'Naive Bayes': naive_bayes_model.predict_proba(input_df)[0][1],
+        'Voting Classifier': voting_classifier_model.predict_proba(input_df)[0][1],
+        'XGBoost SMOTE': xgboost_SMOTE_model.predict_proba(input_df)[0][1],
+        'XGBoost Feature Engineered': xgboost_featureEngineered_model.predict_proba(input_df)[0][1],
+        'AdaBoost': adaboost_model.predict_proba(input_df)[0][1],
+        'Gradient Boosting': gb_model.predict_proba(input_df)[0][1],
+        'Stacking Classifier': stacking_classifier_model.predict_proba(input_df)[0][1],
+        'Extra Trees': extra_trees_model.predict_proba(input_df)[0][1],
+               
 
     }
     
@@ -304,20 +319,21 @@ if selected_customer_option:
     
     # if st.button("Get Predictions"):
     #     make_predictions(input_df, input_dict)
-    avg_probability = make_predictions(input_df, input_dict)
-    
-    explanation = explain_prediction(avg_probability, input_dict, selected_customer['Surname'])
-    
-    st.markdown("-----")
-    
-    st.subheader("Explanation of Prediction")
-    
-    st.write(explanation)
-    
-    email = generate_email(avg_probability, input_dict, selected_customer['Surname'], explanation)
-    
-    st.markdown("-----")
-    
-    st.subheader("Personalized Email")
-    
-    st.write(email)
+    if st.button("Get Predictions"):
+        avg_probability = make_predictions(input_df, input_dict)
+        
+        explanation = explain_prediction(avg_probability, input_dict, selected_customer['Surname'])
+        
+        st.markdown("-----")
+        
+        st.subheader("Explanation of Prediction")
+        
+        st.write(explanation)
+        
+        email = generate_email(avg_probability, input_dict, selected_customer['Surname'], explanation)
+        
+        st.markdown("-----")
+        
+        st.subheader("Personalized Email")
+        
+        st.write(email)
