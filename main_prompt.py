@@ -118,15 +118,23 @@ def make_predictions(input_df, input_dict):
     return avg_probability
 
 def display_percentile_chart(df, customer_id, metric):
-    """
-    Displays a percentile chart for the selected metric and customer.
-    """
+    st.write(f"Displaying chart for Customer ID: {customer_id}, Metric: {metric}")
+    
+    # Check if the metric exists in the DataFrame
+    if metric not in df.columns:
+        st.error(f"Metric '{metric}' not found in DataFrame.")
+        return
+    
     # Get the metric for the selected customer
-    customer_value = df.loc[df['CustomerId'] == customer_id, metric].values[0]
+    try:
+        customer_value = df.loc[df['CustomerId'] == customer_id, metric].values[0]
+    except IndexError:
+        st.error("Selected customer ID not found in DataFrame.")
+        return
     
     # Calculate percentiles for the selected metric
-    percentiles = np.percentile(df[metric], np.arange(0, 101, 1))
-
+    percentiles = np.percentile(df[metric].dropna(), np.arange(0, 101, 1))
+    
     # Determine the customer's percentile
     customer_percentile = np.searchsorted(percentiles, customer_value)
 
@@ -142,6 +150,7 @@ def display_percentile_chart(df, customer_id, metric):
     fig.add_scatter(x=[customer_percentile], y=[customer_value], mode='markers', marker=dict(color='red', size=12), name='Customer Value')
 
     st.plotly_chart(fig)
+
 def explain_prediction(probability, input_dict, surname):
     prompt = f"""Task: Analyze a bank customer's risk of leaving the bank (churning) and provide a clear explanation.
 
